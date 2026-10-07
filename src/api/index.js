@@ -59,6 +59,9 @@ export const togglePublishStatus = (videoId) =>
 export const watchVideo = (videoId) =>
   API.patch(`/videos/watch/${videoId}`);
 
+export const getVideoAiSummary = (videoId, params) =>
+  API.post(`/videos/${videoId}/ai-summary`, null, { params });
+
 // ── Comments ──
 export const getVideoComments = (videoId, params) =>
   API.get(`/videos/${videoId}/comments`, { params });

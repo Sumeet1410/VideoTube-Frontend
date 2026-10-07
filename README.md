@@ -8,6 +8,7 @@ A sleek, responsive, and feature-rich YouTube & Twitter (X) hybrid web applicati
 
 ### 🎬 Video Experience
 - **Video Feed & Search**: Browse videos with pagination, search by title/description or creator handle (`@username`), and sort by Newest or Most Viewed.
+- **AI-Powered 3-Line Summaries (Google Gemini)**: Instant 3-line bullet point summaries powered by Google Gemini AI. Includes interactive shimmering skeleton loaders, one-click copy to clipboard, and on-demand regeneration.
 - **Video Player**: High-definition video playback with view counting and watch history tracking.
 - **Engagement**: Like/unlike videos with instant optimistic counters and subscribe/unsubscribe to channels with live subscriber counts.
 - **Playlists**: Create custom playlists, add/remove videos via modal, and manage playlist details.
@@ -150,4 +151,5 @@ This frontend communicates with the **VideoTube Express / Node.js & MongoDB** ba
 - JWT Authentication (Access + Refresh Token cookies & headers)
 - BullMQ + Redis async background video processing pipeline
 - Cloudinary media asset management
+- Google Gemini AI API for automatic and on-demand 3-line video summarization
 - MongoDB Aggregation pipelines for statistics, watch history, and content queries

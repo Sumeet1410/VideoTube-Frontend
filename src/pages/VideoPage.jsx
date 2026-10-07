@@ -7,6 +7,8 @@ import {
   HiFolderAdd,
   HiPlus,
   HiCheck,
+  HiSparkles,
+  HiClipboardCopy,
 } from 'react-icons/hi';
 import {
   getVideoById,
@@ -25,6 +27,7 @@ import {
   createPlaylist,
   toggleCommentLike,
   getCommentLikes,
+  getVideoAiSummary,
 } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { formatViews, formatDate, getErrorMessage } from '../utils/helpers';
@@ -65,6 +68,12 @@ export default function VideoPage() {
   const [commentLikesCount, setCommentLikesCount] = useState({});
   const [showDescription, setShowDescription] = useState(false);
 
+  // AI Summary State
+  const [aiSummary, setAiSummary] = useState('');
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [copiedSummary, setCopiedSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState('');
+
   // Playlist Modal State
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [playlists, setPlaylists] = useState([]);
@@ -82,6 +91,11 @@ export default function VideoPage() {
         const { data } = await getVideoById(videoId);
         const vid = data?.data;
         setVideo(vid);
+        if (vid?.aiSummary) {
+          setAiSummary(vid.aiSummary);
+        } else {
+          setAiSummary('');
+        }
 
         // Resolve owner object
         let resolvedOwner = typeof vid?.owner === 'object' && vid.owner !== null ? vid.owner : null;
@@ -372,6 +386,55 @@ export default function VideoPage() {
     }
   };
 
+  // Reset AI summary state when navigating to a new video
+  useEffect(() => {
+    setAiSummary('');
+    setSummaryError('');
+  }, [videoId]);
+
+  const handleGenerateSummary = async (isRegenerate = false) => {
+    if (!isAuthenticated) {
+      toast.error('Please sign in to generate AI summary');
+      return;
+    }
+    setSummaryLoading(true);
+    setSummaryError('');
+    try {
+      const { data } = await getVideoAiSummary(videoId, isRegenerate ? { forceRegenerate: true } : {});
+      const summaryText = data?.data?.summary || '';
+      setAiSummary(summaryText);
+      setVideo((prev) => (prev ? { ...prev, aiSummary: summaryText } : prev));
+      toast.success(isRegenerate ? 'AI Summary regenerated & saved!' : 'AI Summary ready!');
+    } catch (err) {
+      console.error('AI summary error:', err);
+      const rawMsg = getErrorMessage(err, '');
+      let cleanMsg = 'Unable to generate AI summary at this moment. Please try again shortly.';
+      if (
+        rawMsg &&
+        !rawMsg.includes('Google') &&
+        !rawMsg.includes('v1beta') &&
+        !rawMsg.includes('models/') &&
+        !rawMsg.includes('http') &&
+        !rawMsg.includes('{') &&
+        rawMsg.length < 120
+      ) {
+        cleanMsg = rawMsg;
+      }
+      setSummaryError(cleanMsg);
+      toast.error(cleanMsg);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  const handleCopySummary = () => {
+    if (!aiSummary) return;
+    navigator.clipboard.writeText(aiSummary);
+    setCopiedSummary(true);
+    toast.success('Summary copied to clipboard!');
+    setTimeout(() => setCopiedSummary(false), 2000);
+  };
+
   if (loading) return <Loader fullScreen />;
   if (!video) {
     return (
@@ -477,6 +540,93 @@ export default function VideoPage() {
                 <HiFolderAdd size={20} />
                 <span>Save</span>
               </button>
+            </div>
+          </div>
+
+          {/* AI Summary */}
+          <div className="ai-summary-card" id="ai-summary-box">
+            <div className="ai-summary-header">
+              <div className="ai-summary-title-group">
+                <div className="ai-summary-badge-icon">
+                  <HiSparkles size={16} />
+                </div>
+                <div className="ai-summary-heading-wrapper">
+                  <span className="ai-summary-title">AI Summary</span>
+                  <span className="ai-summary-tag">Gemini AI</span>
+                </div>
+              </div>
+
+              <div className="ai-summary-actions">
+                {aiSummary && (
+                  <button
+                    className="ai-action-btn"
+                    onClick={handleCopySummary}
+                    title="Copy summary"
+                    aria-label="Copy summary"
+                  >
+                    {copiedSummary ? <HiCheck size={14} style={{ color: '#10b981' }} /> : <HiClipboardCopy size={14} />}
+                    <span>{copiedSummary ? 'Copied' : 'Copy'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="ai-summary-body">
+              {summaryLoading ? (
+                <div className="ai-summary-loading">
+                  <div className="ai-summary-shimmer">
+                    <div className="shimmer-line line-1"></div>
+                    <div className="shimmer-line line-2"></div>
+                    <div className="shimmer-line line-3"></div>
+                  </div>
+                  <div className="ai-loading-text">
+                    <HiSparkles className="ai-icon-spin" size={14} />
+                    <span>Gemini is generating a 3-line summary...</span>
+                  </div>
+                </div>
+              ) : aiSummary ? (
+                <div className="ai-summary-content">
+                  {aiSummary
+                    .split('\n')
+                    .map((l) => l.trim())
+                    .filter(Boolean)
+                    .map((line, idx) => (
+                      <div key={idx} className="ai-summary-line">
+                        <span className="ai-bullet-icon">✦</span>
+                        <p className="ai-line-text">
+                          {line.replace(/^[•\-\*\d+\.]\s*/, '')}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              ) : summaryError ? (
+                <div className="ai-summary-error">
+                  <p className="ai-error-text">{summaryError}</p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleGenerateSummary(false)}
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              ) : (
+                <div className="ai-summary-empty">
+                  <p className="ai-empty-text">
+                    Get an instant 3-line summary of this video powered by Google Gemini AI.
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleGenerateSummary(false)}
+                    id="generate-ai-summary-btn"
+                    className="ai-generate-btn"
+                  >
+                    <HiSparkles size={16} />
+                    <span>Generate AI Summary</span>
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
